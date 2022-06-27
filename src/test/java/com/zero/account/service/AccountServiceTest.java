@@ -39,30 +39,27 @@ class AccountServiceTest {
     @Test
     void successCreateAccount() {
         // given
-        given(accountUserRepository.findById(any())).willReturn(Optional.of(
-                AccountUser.builder()
-                        .id(1L)
-                        .build()
-        ));
+        AccountUser accountUser = new AccountUser();
+        accountUser.setId(1L);
+        Account account = Account.builder()
+                .accountUser(accountUser)
+                .accountNumber("1234")
+                .balance(1000L)
+                .accountStatus(AccountStatus.IN_USE)
+                .registeredAt(LocalDateTime.now())
+                .build();
+        account.setId(1L);
+        given(accountUserRepository.findById(any())).willReturn(Optional.of(accountUser));
         given(accountRepository.countByAccountUserId(any())).willReturn(Optional.of(0L));
-        given(accountRepository.save(any())).willReturn(
-                Account.builder()
-                        .id(1L)
-                        .accountUser(AccountUser.builder().id(1L).build())
-                        .accountNumber("1234")
-                        .balance(1000L)
-                        .accountStatus(AccountStatus.IN_USE)
-                        .registeredAt(LocalDateTime.now())
-                        .build()
-        );
+        given(accountRepository.save(any())).willReturn(account);
 
         // when
-        AccountDto account = accountService.createAccount(1L, 1000L);
+        AccountDto getAccount = accountService.createAccount(1L, 1000L);
 
         // then
-        assertThat(account.getUserId()).isEqualTo(1L);
-        assertThat(account.getBalance()).isEqualTo(1000L);
-        assertThat(account.getAccountStatus()).isEqualTo(AccountStatus.IN_USE);
+        assertThat(getAccount.getUserId()).isEqualTo(1L);
+        assertThat(getAccount.getBalance()).isEqualTo(1000L);
+        assertThat(getAccount.getAccountStatus()).isEqualTo(AccountStatus.IN_USE);
 
     }
 
@@ -84,20 +81,19 @@ class AccountServiceTest {
     @Test
     void successAccountUserIdCheck() {
         // given
+        AccountUser accountUser = new AccountUser("테스트");
+        accountUser.setId(1L);
         given(accountUserRepository.findById(anyLong()))
-                .willReturn(Optional.of(AccountUser.builder()
-                        .id(1L)
-                        .name("테스트")
-                        .build()));
+                .willReturn(Optional.of(accountUser));
 
         // when
-        AccountUser accountUser =
+        AccountUser getAccountUser =
                 accountUserRepository.findById(1L).orElseThrow(() ->
                         new IllegalArgumentException(USER_NOT_FOUND.getDescription()));
 
         // then
-        assertThat(accountUser.getId()).isEqualTo(1L);
-        assertThat(accountUser.getName()).isEqualTo("테스트");
+        assertThat(getAccountUser.getId()).isEqualTo(1L);
+        assertThat(getAccountUser.getName()).isEqualTo("테스트");
     }
 
 
@@ -105,11 +101,10 @@ class AccountServiceTest {
     @Test
     void failedCreateAccountCheckMaxAccount() {
         // given
+        AccountUser accountUser = new AccountUser("테스트");
+        accountUser.setId(1L);
         given(accountUserRepository.findById(anyLong()))
-                .willReturn(Optional.of(AccountUser.builder()
-                        .id(1L)
-                        .name("테스트")
-                        .build()));
+                .willReturn(Optional.of(accountUser));
         given(accountRepository.countByAccountUserId(anyLong()))
                 .willReturn(Optional.of(10L));
 
@@ -184,15 +179,14 @@ class AccountServiceTest {
     @Test
     void failedDeleteAccountDeletedAccount() {
         // given
+        AccountUser accountUser = new AccountUser();
+        accountUser.setId(1L);
+        Account account = Account.builder().accountNumber("123").build();
+        account.setId(1L);
         given(accountUserRepository.findById(anyLong()))
-                .willReturn(Optional.of(AccountUser.builder()
-                        .id(1L)
-                        .build()));
+                .willReturn(Optional.of(accountUser));
 
-        accountRepository.save(Account.builder()
-                .id(1L)
-                .accountNumber("123")
-                .build());
+        accountRepository.save(account);
         // when
 
         AccountException exception = Assertions.assertThrows(AccountException.class,
@@ -206,17 +200,16 @@ class AccountServiceTest {
     @Test
     void failedDeleteAccountUserDiffUser() {
         // given
+        AccountUser accountUser = new AccountUser();
+        accountUser.setId(1L);
+        AccountUser diffAccountUser = new AccountUser();
+        accountUser.setId(2L);
+        Account account = Account.builder().accountUser(diffAccountUser).build();
+        account.setId(1L);
         given(accountUserRepository.findById(anyLong()))
-                .willReturn(Optional.of(AccountUser.builder()
-                        .id(1L)
-                        .build()));
+                .willReturn(Optional.of(accountUser));
         given(accountRepository.findByAccountNumber(anyString()))
-                .willReturn(Optional.of(Account.builder()
-                        .id(1L)
-                        .accountUser(AccountUser.builder()
-                                .id(2L)
-                                .build())
-                        .build()));
+                .willReturn(Optional.of(account));
 
         // when
         AccountException exception = Assertions.assertThrows(AccountException.class, () ->
@@ -230,18 +223,13 @@ class AccountServiceTest {
     @Test
     void failedDeleteAccount() {
         // given
+        AccountUser accountUser = new AccountUser();
+        accountUser.setId(1L);
+        Account account = Account.builder().accountUser(accountUser).balance(123L).build();
         given(accountUserRepository.findById(anyLong()))
-                .willReturn(Optional.of(AccountUser.builder()
-                        .id(1L)
-                        .build()));
+                .willReturn(Optional.of(accountUser));
         given(accountRepository.findByAccountNumber(anyString()))
-                .willReturn(Optional.of(Account.builder()
-                        .id(1L)
-                        .accountUser(AccountUser.builder()
-                                .id(1L)
-                                .build())
-                        .balance(123L)
-                        .build()));
+                .willReturn(Optional.of(account));
         // when
         AccountException exception = Assertions.assertThrows(AccountException.class, () ->
                 accountService.updateAccountStatus(1L, "123"));
@@ -254,36 +242,32 @@ class AccountServiceTest {
     @Test
     void successDeleteAccount() {
         // given
+        AccountUser accountUser = new AccountUser();
+        accountUser.setId(1L);
+        Account account = Account.builder()
+                .accountStatus(AccountStatus.IN_USE)
+                .accountUser(accountUser)
+                .balance(0L)
+                .build();
+        account.setId(1L);
+        Account deleteAccount = Account.builder()
+                .accountStatus(AccountStatus.UNREGISTERED)
+                .accountUser(accountUser)
+                .balance(0L)
+                .build();
+        deleteAccount.setId(1L);
         given(accountUserRepository.findById(anyLong()))
-                .willReturn(Optional.of(AccountUser.builder()
-                        .id(1L)
-                        .build()));
+                .willReturn(Optional.of(accountUser));
         given(accountRepository.findByAccountNumber(anyString()))
-                .willReturn(Optional.of(Account.builder()
-                        .id(2L)
-                        .accountStatus(AccountStatus.IN_USE)
-                        .accountUser(AccountUser.builder()
-                                .id(1L)
-                                .build())
-                        .balance(0L)
-                        .build()));
-        given(accountRepository.save(any())).willReturn(
-                Account.builder()
-                        .id(2L)
-                        .accountStatus(AccountStatus.UNREGISTERED)
-                        .accountUser(AccountUser.builder()
-                                .id(1L)
-                                .build())
-                        .balance(0L)
-                        .build()
-        );
+                .willReturn(Optional.of(account));
+        given(accountRepository.save(any())).willReturn(deleteAccount);
 
         // when
-        AccountDto account = accountService.updateAccountStatus(1L, "1");
+        AccountDto getAccount = accountService.updateAccountStatus(1L, "1");
 
         // then
-        assertThat(account.getUserId()).isEqualTo(2L);
-        assertThat(account.getAccountStatus()).isEqualTo(AccountStatus.UNREGISTERED);
+        assertThat(getAccount.getUserId()).isEqualTo(1L);
+        assertThat(getAccount.getAccountStatus()).isEqualTo(AccountStatus.UNREGISTERED);
     }
 
 
@@ -304,11 +288,9 @@ class AccountServiceTest {
     @Test
     void failedSelectAccountNothaveAccount() {
         // given
-        given(accountUserRepository.findById(anyLong())).willReturn(Optional.of(
-                AccountUser.builder()
-                        .id(1L)
-                        .build()
-        ));
+        AccountUser accountUser = new AccountUser();
+        accountUser.setId(1L);
+        given(accountUserRepository.findById(anyLong())).willReturn(Optional.of(accountUser));
         // when
         AccountException exception = Assertions.assertThrows(AccountException.class, () ->
                 accountService.selectAccounts(1L));
@@ -321,33 +303,31 @@ class AccountServiceTest {
     @Test
     void selectAccount() {
         // given
+        AccountUser accountUser = new AccountUser();
+        accountUser.setId(1L);
+        Account account1 = Account.builder()
+                .accountNumber("11111")
+                .accountUser(accountUser)
+                .balance(0L)
+                .build();
+        account1.setId(1L);
+        Account account2 = Account.builder()
+                .accountNumber("22222")
+                .accountUser(accountUser)
+                .balance(0L)
+                .build();
+        account2.setId(2L);
+        Account account3 = Account.builder()
+                .accountNumber("33333")
+                .accountUser(accountUser)
+                .balance(0L)
+                .build();
+        account3.setId(3L);
         given(accountRepository.findByAccountUserId(any()))
                 .willReturn(Optional.of(Arrays.asList(
-                        Account.builder()
-                                .id(1L)
-                                .accountNumber("11111")
-                                .accountUser(AccountUser.builder()
-                                        .id(1L)
-                                        .build())
-                                .balance(0L)
-                                .build(),
-                        Account.builder()
-                                .id(2L)
-                                .accountNumber("22222")
-                                .accountUser(AccountUser.builder()
-                                        .id(1L)
-                                        .build())
-                                .balance(0L)
-                                .build(),
-                        (Account.builder()
-                                .id(3L)
-                                .accountNumber("33333")
-                                .accountUser(AccountUser.builder()
-                                        .id(1L)
-                                        .build())
-                                .balance(0L)
-                                .build()
-                        ))));
+                        account1,
+                        account2,
+                        account3)));
 
         // when
         List<Account> accounts = accountRepository.findByAccountUserId(1L).get();

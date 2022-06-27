@@ -3,26 +3,21 @@ package com.zero.account.domain;
 import com.zero.account.type.TransactionResultStatus;
 import com.zero.account.type.TransactionStatus;
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import javax.persistence.*;
-import java.time.LocalDateTime;
 
 
+@Builder
 @Setter
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
-@Builder
 @Entity
 @ToString
 @EntityListeners(AuditingEntityListener.class)
-public class Transaction {
+public class Transaction extends BaseEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
     @ManyToOne
     @JoinColumn(name = "account_id")
     private Account account;
@@ -32,15 +27,6 @@ public class Transaction {
     private TransactionResultStatus transactionResultStatus;
     private Long transactionAmount;
     private String accountNumber;
-
-
-    @CreatedDate
-    private LocalDateTime createdAt;
-
-    public Account getAccount() {
-        return account;
-    }
-
 
 }
 

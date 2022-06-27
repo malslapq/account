@@ -46,55 +46,35 @@ class TransactionServiceTest {
     @Test
     void successTransactionUse() {
         // given
-        Long setUserId = 1L;
-        Long setAccountId = 1L;
-        Long setTransactionId = 1L;
-        String setAccountNumber = "12345";
-        Long setBalance = 10000L;
-        Long paymentAmount = 1000L;
-        given(accountUserRepository.findById(any())).willReturn(Optional.of(
-                AccountUser.builder()
-                        .id(setUserId)
-                        .build())
-        );
-        given(accountRepository.findByAccountNumber(any())).willReturn(Optional.of(
-                Account.builder()
-                        .id(setAccountId)
-                        .accountStatus(AccountStatus.IN_USE)
-                        .balance(setBalance)
-                        .accountNumber(setAccountNumber)
-                        .accountUser(AccountUser.builder()
-                                .id(setUserId)
-                                .build())
-                        .build()));
-        given(transactionRepository.save(any())).willReturn(
-                Transaction.builder()
-                        .id(setTransactionId)
-                        .account(Account.builder()
-                                .id(setAccountId)
-                                .accountStatus(AccountStatus.IN_USE)
-                                .balance(setBalance)
-                                .accountNumber(setAccountNumber)
-                                .accountUser(AccountUser.builder()
-                                        .id(setUserId)
-                                        .build())
-                                .build())
-                        .transactionStatus(TransactionStatus.APPROVAL)
-                        .transactionAmount(paymentAmount)
-                        .accountNumber(setAccountNumber)
-                        .createdAt(LocalDateTime.now())
-                        .build()
-        );
+        AccountUser accountUser = new AccountUser();
+        accountUser.setId(1L);
+        Account account = Account.builder()
+                .accountNumber("12345")
+                .balance(10000L)
+                .accountUser(accountUser)
+                .accountStatus(AccountStatus.IN_USE)
+                .build();
+        account.setId(1L);
+        Transaction transaction = Transaction.builder()
+                .account(account)
+                .transactionStatus(TransactionStatus.APPROVAL)
+                .transactionAmount(1000L)
+                .accountNumber("12345")
+                .build();
+        transaction.setId(1L);
+        given(accountUserRepository.findById(any())).willReturn(Optional.of(accountUser));
+        given(accountRepository.findByAccountNumber(any())).willReturn(Optional.of(account));
+        given(transactionRepository.save(any())).willReturn(transaction);
 
         // when
-        TransactionDto transaction = transactionService.transactionUse(setUserId,
-                setAccountNumber, paymentAmount);
+        TransactionDto getTransaction = transactionService.transactionUse(
+                1L, "12345", 1000L);
 
 
         // then
-        assertThat(transaction.getAccountNumber()).isEqualTo(setAccountNumber);
-        assertThat(transaction.getTransactionStatus()).isEqualTo(TransactionStatus.APPROVAL);
-        assertThat(transaction.getTransactionAmount()).isEqualTo(paymentAmount);
+        assertThat(getTransaction.getAccountNumber()).isEqualTo(account.getAccountNumber());
+        assertThat(getTransaction.getTransactionStatus()).isEqualTo(TransactionStatus.APPROVAL);
+        assertThat(getTransaction.getTransactionAmount()).isEqualTo(transaction.getTransactionAmount());
 
     }
 
@@ -116,11 +96,9 @@ class TransactionServiceTest {
     @Test
     void failedCreateTransactionNotFoundAccount() {
         // given
-        given(accountUserRepository.findById(any())).willReturn(Optional.of(
-                AccountUser.builder()
-                        .id(1L)
-                        .build()
-        ));
+        AccountUser accountUser = new AccountUser();
+        accountUser.setId(1L);
+        given(accountUserRepository.findById(any())).willReturn(Optional.of(accountUser));
 
         // when
         AccountException exception = Assertions.assertThrows(AccountException.class,
@@ -134,18 +112,17 @@ class TransactionServiceTest {
     @Test
     void failedCreateTransactionMissMatchAccountUser() {
         // given
-        given(accountUserRepository.findById(any())).willReturn(Optional.of(
-                AccountUser.builder()
-                        .id(1L)
-                        .build()
-        ));
-        given(accountRepository.findByAccountNumber(any())).willReturn(Optional.of(
-                Account.builder()
-                        .id(1L)
-                        .accountUser(AccountUser.builder().id(2L).build())
-                        .accountStatus(AccountStatus.IN_USE)
-                        .build()
-        ));
+        AccountUser accountUser1 = new AccountUser();
+        accountUser1.setId(1L);
+        AccountUser accountUser2 = new AccountUser();
+        accountUser2.setId(2L);
+        Account account = Account.builder()
+                .accountUser(accountUser2)
+                .accountStatus(AccountStatus.IN_USE)
+                .build();
+        account.setId(1L);
+        given(accountUserRepository.findById(any())).willReturn(Optional.of(accountUser1));
+        given(accountRepository.findByAccountNumber(any())).willReturn(Optional.of(account));
 
         // when
         AccountException exception = Assertions.assertThrows(AccountException.class,
@@ -159,14 +136,12 @@ class TransactionServiceTest {
     @Test
     void failedCreateTransactionCancelAccount() {
         // given
-        AccountUser accountUser = AccountUser.builder().id(1L).build();
-        given(accountUserRepository.findById(any())).willReturn(Optional.ofNullable(accountUser));
-        given(accountRepository.findByAccountNumber(any())).willReturn(Optional.of(
-                Account.builder()
-                        .id(1L)
-                        .accountUser(accountUser)
-                        .accountStatus(AccountStatus.UNREGISTERED)
-                        .build()
+        AccountUser accountUser = new AccountUser();
+        accountUser.setId(1L);
+        Account account = Account.builder().accountUser(accountUser).accountStatus(AccountStatus.UNREGISTERED).build();
+        account.setId(1L);
+        given(accountUserRepository.findById(any())).willReturn(Optional.of(accountUser));
+        given(accountRepository.findByAccountNumber(any())).willReturn(Optional.of(account
         ));
 
         // when
@@ -181,16 +156,16 @@ class TransactionServiceTest {
     @Test
     void failedCreateTransactionInsufficientBalance() {
         // given
-        AccountUser accountUser = AccountUser.builder().id(1L).build();
-        given(accountUserRepository.findById(any())).willReturn(Optional.ofNullable(accountUser));
-        given(accountRepository.findByAccountNumber(any())).willReturn(Optional.of(
-                Account.builder()
-                        .id(1L)
+        AccountUser accountUser = new AccountUser();
+        accountUser.setId(1L);
+        Account account = Account.builder()
                         .accountUser(accountUser)
                         .accountStatus(AccountStatus.IN_USE)
                         .balance(1000L)
-                        .build()
-        ));
+                        .build();
+        account.setId(1L);
+        given(accountUserRepository.findById(any())).willReturn(Optional.of(accountUser));
+        given(accountRepository.findByAccountNumber(any())).willReturn(Optional.of(account));
 
         // when
         AccountException exception = Assertions.assertThrows(AccountException.class,
@@ -204,16 +179,16 @@ class TransactionServiceTest {
     @Test
     void failedCreateTransactionOutOfRangeMinimumBalance() {
         // given
-        AccountUser accountUser = AccountUser.builder().id(1L).build();
-        given(accountUserRepository.findById(any())).willReturn(Optional.ofNullable(accountUser));
-        given(accountRepository.findByAccountNumber(any())).willReturn(Optional.of(
-                Account.builder()
-                        .id(1L)
-                        .accountUser(accountUser)
-                        .accountStatus(AccountStatus.IN_USE)
-                        .balance(1000L)
-                        .build()
-        ));
+        AccountUser accountUser = new AccountUser();
+        accountUser.setId(1L);
+        Account account = Account.builder()
+                .accountUser(accountUser)
+                .accountStatus(AccountStatus.IN_USE)
+                .balance(1000L)
+                .build();
+        account.setId(1L);
+        given(accountUserRepository.findById(any())).willReturn(Optional.of(accountUser));
+        given(accountRepository.findByAccountNumber(any())).willReturn(Optional.of(account));
 
         // when
         AccountException exception = Assertions.assertThrows(AccountException.class,
@@ -227,16 +202,16 @@ class TransactionServiceTest {
     @Test
     void failedCreateTransactionOutOfRangeMaximumBalance() {
         // given
-        AccountUser accountUser = AccountUser.builder().id(1L).build();
-        given(accountUserRepository.findById(any())).willReturn(Optional.ofNullable(accountUser));
-        given(accountRepository.findByAccountNumber(any())).willReturn(Optional.of(
-                Account.builder()
-                        .id(1L)
-                        .accountUser(accountUser)
-                        .accountStatus(AccountStatus.IN_USE)
-                        .balance(1000L)
-                        .build()
-        ));
+        AccountUser accountUser = new AccountUser();
+        accountUser.setId(1L);
+        Account account = Account.builder()
+                .accountUser(accountUser)
+                .accountStatus(AccountStatus.IN_USE)
+                .balance(1000L)
+                .build();
+        account.setId(1L);
+        given(accountUserRepository.findById(any())).willReturn(Optional.of(accountUser));
+        given(accountRepository.findByAccountNumber(any())).willReturn(Optional.of(account));
 
         // when
         AccountException exception = Assertions.assertThrows(AccountException.class,
@@ -247,17 +222,16 @@ class TransactionServiceTest {
     }
 
 
-    @DisplayName("거래(취소) - 실패 금액이 다름")
+    @DisplayName("거래(취소) - 실패 거래 금액이 다름")
     @Test
     void failedTransactionCancelMissMatchTransactionAmount() {
         // given
-        given(transactionRepository.findById(any())).willReturn(Optional.of(
-                Transaction.builder()
-                        .id(1L)
-                        .accountNumber("123")
-                        .transactionAmount(1000L)
-                        .build()
-        ));
+        Transaction transaction = Transaction.builder()
+                .accountNumber("123")
+                .transactionAmount(1000L)
+                .build();
+        transaction.setId(1L);
+        given(transactionRepository.findById(any())).willReturn(Optional.of(transaction));
 
         // when
         AccountException exception = Assertions.assertThrows(AccountException.class,
@@ -271,13 +245,12 @@ class TransactionServiceTest {
     @Test
     void failedTransactionCancelMissMatchTransaction() {
         // given
-        given(transactionRepository.findById(any())).willReturn(Optional.of(
-                Transaction.builder()
-                        .id(1L)
-                        .accountNumber("123")
-                        .transactionAmount(1000L)
-                        .build()
-        ));
+        Transaction transaction = Transaction.builder()
+                .accountNumber("123")
+                .transactionAmount(1000L)
+                .build();
+        transaction.setId(1L);
+        given(transactionRepository.findById(any())).willReturn(Optional.of(transaction));
 
         // when
         AccountException exception = Assertions.assertThrows(AccountException.class,
@@ -291,35 +264,29 @@ class TransactionServiceTest {
     @Test
     void successTransactionCancel() {
         // given
-        given(transactionRepository.findById(any())).willReturn(Optional.of(
-                Transaction.builder()
-                        .id(1L)
-                        .accountNumber("123")
-                        .transactionAmount(2000L)
-                        .account(Account.builder()
-                                .id(1L)
-                                .balance(5000L)
-                                .accountUser(AccountUser.builder()
-                                        .id(1L)
-                                        .build())
-                                .accountStatus(AccountStatus.IN_USE)
-                                .build())
-                        .build()
-        ));
-        given(transactionRepository.save(any())).willReturn(Transaction.builder()
-                .id(1L)
+        AccountUser accountUser = new AccountUser();
+        accountUser.setId(1L);
+        Account account = Account.builder()
+                .balance(5000L)
+                .accountUser(accountUser)
+                .accountStatus(AccountStatus.IN_USE)
+                .build();
+        account.setId(1L);
+        Transaction transaction1 = Transaction.builder()
                 .accountNumber("123")
                 .transactionAmount(2000L)
-                .account(Account.builder()
-                        .id(1L)
-                        .balance(5000L)
-                        .accountUser(AccountUser.builder()
-                                .id(1L)
-                                .build())
-                        .accountStatus(AccountStatus.IN_USE)
-                        .build())
+                .account(account)
+                .build();
+        transaction1.setId(1L);
+        Transaction transaction2 = Transaction.builder()
+                .accountNumber("123")
+                .transactionAmount(2000L)
+                .account(account)
                 .transactionStatus(TransactionStatus.CANCEL)
-                .build());
+                .build();
+        transaction2.setId(1L);
+        given(transactionRepository.findById(any())).willReturn(Optional.of(transaction1));
+        given(transactionRepository.save(any())).willReturn(transaction2);
 
         // when
         TransactionDto transactionDto = transactionService.transactionCancel(
@@ -351,16 +318,14 @@ class TransactionServiceTest {
     @Test
     void successSelectTransaction() {
         // given
-        given(transactionRepository.findById(any())).willReturn(Optional.of(
-                Transaction.builder()
-                        .id(1L)
-                        .transactionResultStatus(TransactionResultStatus.SUCCEED)
-                        .transactionAmount(1000L)
-                        .accountNumber("12345")
-                        .createdAt(LocalDateTime.now())
-                        .transactionStatus(TransactionStatus.APPROVAL)
-                        .build()
-        ));
+        Transaction transaction = Transaction.builder()
+                .transactionResultStatus(TransactionResultStatus.SUCCEED)
+                .transactionAmount(1000L)
+                .accountNumber("12345")
+                .transactionStatus(TransactionStatus.APPROVAL)
+                .build();
+        transaction.setId(1L);
+        given(transactionRepository.findById(any())).willReturn(Optional.of(transaction));
 
         // when
         TransactionInfo transactionInfo = transactionService.selectTransaction(1L);

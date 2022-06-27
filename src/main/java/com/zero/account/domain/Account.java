@@ -20,11 +20,8 @@ import static com.zero.account.type.ErrorCode.*;
 @Builder
 @Entity
 @EntityListeners(AuditingEntityListener.class)
-public class Account {
+public class Account extends BaseEntity{
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
     @ManyToOne
     @JoinColumn(name = "account_user_id")
     private AccountUser accountUser;
@@ -34,11 +31,6 @@ public class Account {
     private Long balance;
     private LocalDateTime registeredAt;
     private LocalDateTime unRegisteredAt;
-
-    @CreatedDate
-    private LocalDateTime createdAt;
-    @LastModifiedDate
-    private LocalDateTime updatedAt;
 
     public void useBalance(Long paymentAmount) {
         if (paymentAmount < 100) {

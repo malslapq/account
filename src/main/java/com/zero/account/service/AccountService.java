@@ -29,9 +29,7 @@ public class AccountService {
     @Transactional
     public AccountDto createAccount(Long userId, Long initialBalance) {
         long createAccountNumber;
-        AccountUser accountUser = accountUserRepository.findById(userId).orElseThrow(() ->
-                new AccountException(USER_NOT_FOUND));
-
+        AccountUser accountUser = getAccountUser(userId);
         Long accountCnt = accountRepository.countByAccountUserId(accountUser.getId())
                 .orElse(0L);
 
@@ -66,8 +64,7 @@ public class AccountService {
 
     @Transactional
     public AccountDto updateAccountStatus(Long userId, String accountNumber) {
-        AccountUser accountUser = accountUserRepository.findById(userId).orElseThrow(() ->
-                new AccountException(USER_NOT_FOUND));
+        AccountUser accountUser = getAccountUser(userId);
 
         Account account = accountRepository.findByAccountNumber(accountNumber)
                 .orElseThrow(() -> new AccountException(ACCOUNT_NOT_FOUND));
@@ -85,12 +82,16 @@ public class AccountService {
 
     @Transactional
     public List<AccountDto> selectAccounts(Long userId) {
-        AccountUser accountUser = accountUserRepository.findById(userId).orElseThrow(() ->
-                new AccountException(USER_NOT_FOUND));
+        AccountUser accountUser = getAccountUser(userId);
         List<Account> accounts = accountRepository.findByAccountUserId(accountUser.getId()).orElseThrow(() ->
                 new AccountException(NOT_HAVE_ACCOUNT));
 
         return accounts.stream().map(AccountDto::fromEntity).collect(Collectors.toList());
+    }
+
+    private AccountUser getAccountUser(Long userId) {
+        return accountUserRepository.findById(userId).orElseThrow(() ->
+                new AccountException(USER_NOT_FOUND));
     }
 
 }

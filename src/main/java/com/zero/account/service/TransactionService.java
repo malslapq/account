@@ -28,6 +28,77 @@ public class TransactionService {
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
 
+
+    @Transactional
+    public void createFailedTransaction(
+            String accountNumber, Long paymentAmount, TransactionStatus transactionStatus) {
+        Account account = getAccount(accountNumber);
+
+        Transaction transaction = saveGetTransaction(
+                accountNumber,
+                paymentAmount,
+                account,
+                TransactionResultStatus.FAILED,
+                transactionStatus);
+    }
+
+    @Transactional
+    public TransactionDto transactionUse(Long userId, String accountNumber, Long paymentAmount) {
+        AccountUser accountUser =
+                accountUserRepository.findById(userId).orElseThrow(() ->
+                        new AccountException(USER_NOT_FOUND));
+        Account account = getAccount(accountNumber);
+
+        validateTransactionUse(accountUser, account);
+        account.useBalance(paymentAmount);
+        accountRepository.save(account);
+
+        return TransactionDto.fromEntity(
+                saveGetTransaction(
+                        accountNumber,
+                        paymentAmount,
+                        account,
+                        TransactionResultStatus.SUCCEED,
+                        TransactionStatus.APPROVAL));
+    }
+
+    @Transactional
+    public TransactionDto transactionCancel(Long transactionId, String accountNumber,
+                                            Long cancellationAmount) {
+        Transaction transaction = getTransaction(transactionId);
+        if (!Long.valueOf(transaction.getAccountNumber()).equals(Long.valueOf(accountNumber))) {
+            throw new AccountException(TRANSACTION_ACCOUNT_NUMBER_MIS_MATCH);
+        }
+        if (!Objects.equals(transaction.getTransactionAmount(), cancellationAmount)) {
+            throw new AccountException(TRANSACTION_AMOUNT_MIS_MATCH);
+        }
+
+        Account account = transaction.getAccount();
+        account.setBalance(account.getBalance() + cancellationAmount);
+        accountRepository.save(account);
+        return TransactionDto.fromEntity(
+                saveGetTransaction(
+                        accountNumber,
+                        cancellationAmount,
+                        account,
+                        TransactionResultStatus.SUCCEED,
+                        TransactionStatus.CANCEL));
+    }
+
+    @Transactional
+    public TransactionInfo selectTransaction(Long transactionId) {
+        Transaction transaction = getTransaction(transactionId);
+
+        return TransactionInfo.builder()
+                .transactionId(transaction.getId())
+                .accountNumber(transaction.getAccountNumber())
+                .transactionAmount(transaction.getTransactionAmount())
+                .transactionStatus(transaction.getTransactionStatus())
+                .transactionResultStatus(transaction.getTransactionResultStatus())
+                .registeredAt(transaction.getCreatedAt())
+                .build();
+    }
+
     private Transaction saveGetTransaction(String accountNumber,
                                            Long paymentAmount,
                                            Account account,
@@ -43,22 +114,6 @@ public class TransactionService {
                         .build());
     }
 
-    @Transactional
-    public void createFailedTransaction(
-            String accountNumber, Long paymentAmount, TransactionStatus transactionStatus) {
-        Account account = accountRepository.findByAccountNumber(String.valueOf(accountNumber))
-                .orElseThrow(() -> new AccountException(ACCOUNT_NOT_FOUND));
-
-        Transaction transaction = saveGetTransaction(
-                accountNumber,
-                paymentAmount,
-                account,
-                TransactionResultStatus.FAILED,
-                transactionStatus);
-        System.out.println(transaction);
-    }
-
-
     private void validateTransactionUse(AccountUser accountUser, Account account) {
         if (!Objects.equals(accountUser.getId(), account.getAccountUser().getId())) {
             throw new AccountException(USER_MIS_MATCH);
@@ -68,69 +123,13 @@ public class TransactionService {
         }
     }
 
-    @Transactional
-    public TransactionDto transactionUse(Long userId, String accountNumber, Long paymentAmount) {
-        AccountUser accountUser =
-                accountUserRepository.findById(userId).orElseThrow(() ->
-                        new AccountException(USER_NOT_FOUND));
-        Account account = accountRepository.findByAccountNumber(String.valueOf(accountNumber))
+    private Account getAccount(String accountNumber) {
+        return accountRepository.findByAccountNumber(String.valueOf(accountNumber))
                 .orElseThrow(() -> new AccountException(ACCOUNT_NOT_FOUND));
-
-        validateTransactionUse(accountUser, account);
-        account.useBalance(paymentAmount);
-        accountRepository.save(account);
-
-        return TransactionDto.fromEntity(
-                saveGetTransaction(
-                        accountNumber,
-                        paymentAmount,
-                        account,
-                        TransactionResultStatus.SUCCEED,
-                        TransactionStatus.APPROVAL));
     }
 
-
-    @Transactional
-    public TransactionDto transactionCancel(Long transactionId, String accountNumber,
-                                            Long cancellationAmount) {
-        Transaction transaction =
-                transactionRepository.findById(transactionId).orElseThrow(() ->
-                        new AccountException(TRANSACTION_NOT_FOUND));
-        if (!Long.valueOf(transaction.getAccountNumber()).equals(Long.valueOf(accountNumber))) {
-            throw new AccountException(TRANSACTION_ACCOUNT_NUMBER_MIS_MATCH);
-        }
-        if (!Objects.equals(transaction.getTransactionAmount(), cancellationAmount)) {
-            throw new AccountException(TRANSACTION_AMOUNT_MIS_MATCH);
-        }
-
-        Account account = transaction.getAccount();
-
-        account.setBalance(account.getBalance() + cancellationAmount);
-        accountRepository.save(account);
-        return TransactionDto.fromEntity(
-                saveGetTransaction(
-                        accountNumber,
-                        cancellationAmount,
-                        account,
-                        TransactionResultStatus.SUCCEED,
-                        TransactionStatus.CANCEL));
+    private Transaction getTransaction(Long transactionId) {
+        return transactionRepository.findById(transactionId).orElseThrow(() ->
+                new AccountException(TRANSACTION_NOT_FOUND));
     }
-
-    @Transactional
-    public TransactionInfo selectTransaction(Long transactionId) {
-        Transaction transaction =
-                transactionRepository.findById(transactionId).orElseThrow(() ->
-                        new AccountException(TRANSACTION_NOT_FOUND));
-
-        return TransactionInfo.builder()
-                .transactionId(transaction.getId())
-                .accountNumber(transaction.getAccountNumber())
-                .transactionAmount(transaction.getTransactionAmount())
-                .transactionStatus(transaction.getTransactionStatus())
-                .transactionResultStatus(transaction.getTransactionResultStatus())
-                .registeredAt(transaction.getCreatedAt())
-                .build();
-    }
-
-
 }
